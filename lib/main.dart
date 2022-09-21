@@ -1,138 +1,125 @@
-import 'dart:developer';
-import 'dart:io';
+import 'dart:async';
+import 'dart:math';
+import 'dart:core';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_sound/flutter_sound.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/rendering.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'package:mic_stream/mic_stream.dart';
+
+enum Command {
+  start,
+  stop,
+  change,
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+const AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
 
-  // This widget is the root of your application.
+void main() => runApp(MicStreamExampleApp());
+
+class MicStreamExampleApp extends StatelessWidget {
+  const MicStreamExampleApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const RecorderPage(),
-    );
+        title: 'Barebones recording test',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSwatch(
+            primarySwatch: Colors.amber,
+            brightness: Brightness.light,
+            accentColor: Colors.blue,
+          ),
+        ),
+        home: MicStreamPage());
   }
 }
 
-class RecorderPage extends StatefulWidget {
-  const RecorderPage({Key? key}) : super(key: key);
+class MicStreamPage extends StatefulWidget {
+  const MicStreamPage({Key? key}) : super(key: key);
 
   @override
-  State<RecorderPage> createState() => _RecorderPageState();
+  State<MicStreamPage> createState() => MicStreamPageState();
 }
 
-class _RecorderPageState extends State<RecorderPage> {
-  final recorder = FlutterSoundRecorder();
-  bool isRecorderReady = false;
+class MicStreamPageState extends State<MicStreamPage> {
+  bool _isRecording = false;
+  bool _isInitializing = true;
+  Stream<List<int>>? stream;
+  List<int> _bytes = [];
 
-  stopRecording() async {
-    if (!isRecorderReady) {
-      return;
-    }
-
-    final path = await recorder.stopRecorder();
-    final audioFile = File(path!);
-
-    log(audioFile.uri.path);
-
-    log('recorded audio: $audioFile');
-  }
-
-  startRecording() async {
-    if (!isRecorderReady) {
-      return;
-    }
-
-    await recorder.startRecorder(toFile: 'audio');
-  }
+  StreamSubscription<List<int>>? streamSubscription;
 
   @override
   void initState() {
-    initRecorder();
     super.initState();
   }
 
-  initRecorder() async {
-    final status = await Permission.microphone.request();
+  @override
+  void didChangeDependencies() async {
+    if (_isInitializing) {
+      stream = await MicStream.microphone(sampleRate: 44100);
+      streamSubscription = stream!.listen((samples) {
+        if (_isRecording) {
+          _bytes.addAll(samples);
+          setState(() {});
+        }
+        ;
+      });
 
-    if (status != PermissionStatus.granted) {
-      throw 'Microphone permission was not granted';
+      setState(() {
+        _isInitializing = true;
+      });
     }
-
-    await recorder.openRecorder();
-    isRecorderReady = true;
-
-    recorder.setSubscriptionDuration(
-      const Duration(milliseconds: 500),
-    );
+    super.didChangeDependencies();
   }
 
-  @override
-  void dispose() {
-    recorder.closeRecorder();
-    super.dispose();
+  void _startRecording() {
+    _bytes.clear();
+    _isRecording = true;
+    setState(() {});
+  }
+
+  void _stopRecording() {
+    _isRecording = false;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return (Scaffold(
+    return Scaffold(
       appBar: AppBar(
-        title: Text('Recorder app'),
+        title: Text('Hello Recording'),
       ),
-      body: Center(
+      body: SizedBox(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            StreamBuilder<RecordingDisposition>(
-              stream: recorder.onProgress,
-              builder: ((context, snapshot) {
-                final duration =
-                    snapshot.hasData ? snapshot.data!.duration : Duration.zero;
-
-                String twoDigits(int n) => n.toString().padLeft(2, "0");
-
-                final twoDigitMinutes =
-                    twoDigits(duration.inMinutes.remainder(60));
-
-                final twoDigitSeconds =
-                    twoDigits(duration.inSeconds.remainder(60));
-
-                return (Center(
-                  child: Text(
-                    '$twoDigitMinutes:$twoDigitSeconds',
-                    style: const TextStyle(
-                      fontSize: 80,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ));
-              }),
+            Text(
+              'Recording size: ${_bytes.length}',
+              style: Theme.of(context).textTheme.headline2,
+              textAlign: TextAlign.center,
             ),
-            ElevatedButton(
-              child: Icon(
-                recorder.isRecording ? Icons.stop : Icons.mic,
-                size: 80,
-              ),
-              onPressed: () async {
-                recorder.isRecording
-                    ? await stopRecording()
-                    : await startRecording();
-              },
+            SizedBox(
+              height: 16.0,
+            ),
+            Text(
+              'Is recording: $_isRecording',
+              style: Theme.of(context).textTheme.headline2,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
-    ));
+      floatingActionButton: IconButton(
+        icon: _isRecording ? Icon(Icons.stop) : Icon(Icons.mic),
+        onPressed: () => _isRecording ? _stopRecording() : _startRecording(),
+        iconSize: 48.0,
+      ),
+    );
   }
 }
