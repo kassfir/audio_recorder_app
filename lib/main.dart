@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'dart:core';
 
@@ -86,6 +87,16 @@ class MicStreamPageState extends State<MicStreamPage> {
     setState(() {});
   }
 
+  void _saveFile() async {
+    await File('record.wav').writeAsBytes(_bytes);
+
+    Scaffold.of(context).showSnackBar(
+      SnackBar(
+        content: Text('saved!'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,6 +123,17 @@ class MicStreamPageState extends State<MicStreamPage> {
               style: Theme.of(context).textTheme.headline2,
               textAlign: TextAlign.center,
             ),
+            SizedBox(
+              height: 16.0,
+            ),
+            ElevatedButton(
+                onPressed: () {
+                  _saveFile();
+                },
+                child: Icon(
+                  Icons.save,
+                  size: 32.0,
+                ))
           ],
         ),
       ),
