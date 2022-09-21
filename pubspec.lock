@@ -163,6 +163,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.7.0"
+  mic_stream:
+    dependency: "direct main"
+    description:
+      name: mic_stream
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.6.2"
   nested:
     dependency: transitive
     description:
