@@ -1,8 +1,6 @@
-import 'package:audio_recorder_app/file_list_screen.dart';
-import 'package:audio_recorder_app/record_screen.dart';
+import 'package:audio_recorder_app/screens/file_list_screen.dart';
+import 'package:audio_recorder_app/screens/record_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/src/foundation/key.dart';
-import 'package:flutter/src/widgets/framework.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({Key? key}) : super(key: key);
@@ -29,11 +27,11 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('hello recording'),
+        title: const Text('hello recording'),
       ),
       body: _widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.mic),
             label: 'Record',

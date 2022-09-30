@@ -24,30 +24,33 @@ enum Command {
   change,
 }
 
-const AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
-
 class RecordScreenState extends State<RecordScreen> {
   bool _isRecording = false;
-  bool _isInitializing = true;
   Stream<List<int>>? stream;
-  // Uint8List _bytes = Uint8List.fromList([]);
   final List<int> _bytes = [];
   StreamSubscription<List<int>>? streamSubscription;
-  final AudioPlayer player = AudioPlayer();
+  final AudioPlayer _player = AudioPlayer();
 
-  final SAMPLE_RATE = 44100;
+  final _sampleRate = 44100;
+
+  late final List<int> _headers =
+      getHeaders(channels: 1, sampleRate: _sampleRate, size: _bytes.length);
+
+  //variable for didChangeDependencies because MicStream needs context which
+  //initState does not provide.
+  bool _isInitializing = true;
 
   @override
   void didChangeDependencies() async {
     if (_isInitializing) {
       stream = await MicStream.microphone(
-        sampleRate: SAMPLE_RATE,
+        sampleRate: _sampleRate,
         channelConfig: ChannelConfig.CHANNEL_IN_MONO,
         audioFormat: AudioFormat.ENCODING_PCM_16BIT,
       );
+
       streamSubscription = stream!.listen((samples) {
         if (_isRecording) {
-          // _bytes.addAll(samples);
           _bytes.addAll(samples);
           setState(() {});
         }
@@ -62,6 +65,9 @@ class RecordScreenState extends State<RecordScreen> {
 
   void _startRecording() {
     _bytes.clear();
+
+    //automatically add headers when beginning recording
+    _bytes.addAll(_headers);
     _isRecording = true;
     setState(() {});
   }
@@ -73,55 +79,10 @@ class RecordScreenState extends State<RecordScreen> {
 
   void _saveFile() async {
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = Uuid().v1();
-    final filePath = '${directory.path}/${fileName}.wav';
+    final fileName = const Uuid().v1();
+    final filePath = '${directory.path}/$fileName.wav';
 
-    final size = _bytes.length;
-    final fileSize = size + 36;
-    final channels = 1;
-    final int byteRate = ((16 * SAMPLE_RATE * channels) / 8).round();
-
-    List<int> fullFile = [
-      // "RIFF"
-      82, 73, 70, 70,
-      fileSize & 0xff,
-      (fileSize >> 8) & 0xff,
-      (fileSize >> 16) & 0xff,
-      (fileSize >> 24) & 0xff,
-      // WAVE
-      87, 65, 86, 69,
-      // fmt
-      102, 109, 116, 32,
-      // fmt chunk size 16
-      16, 0, 0, 0,
-      // Type of format
-      1, 0,
-      // One channel
-      channels, 0,
-      // Sample rate
-      SAMPLE_RATE & 0xff,
-      (SAMPLE_RATE >> 8) & 0xff,
-      (SAMPLE_RATE >> 16) & 0xff,
-      (SAMPLE_RATE >> 24) & 0xff,
-      // Byte rate
-      byteRate & 0xff,
-      (byteRate >> 8) & 0xff,
-      (byteRate >> 16) & 0xff,
-      (byteRate >> 24) & 0xff,
-      // Uhm
-      ((16 * channels) / 8).round(), 0,
-      // bitsize
-      16, 0,
-      // "data"
-      100, 97, 116, 97,
-      size & 0xff,
-      (size >> 8) & 0xff,
-      (size >> 16) & 0xff,
-      (size >> 24) & 0xff,
-      ..._bytes
-    ];
-
-    await File(filePath).writeAsBytes(fullFile);
+    await File(filePath).writeAsBytes(_bytes);
     log(filePath);
   }
 
@@ -135,11 +96,11 @@ class RecordScreenState extends State<RecordScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Recording size: ${_bytes.length}',
+            'Recording length: ${_bytes.length}',
             style: Theme.of(context).textTheme.headline2,
             textAlign: TextAlign.center,
           ),
-          SizedBox(
+          const SizedBox(
             height: 16.0,
           ),
           Text(
@@ -147,36 +108,34 @@ class RecordScreenState extends State<RecordScreen> {
             style: Theme.of(context).textTheme.headline2,
             textAlign: TextAlign.center,
           ),
-          SizedBox(
+          const SizedBox(
             height: 16.0,
           ),
           ElevatedButton(
             onPressed: () {
               _saveFile();
             },
-            child: Icon(
+            child: const Icon(
               Icons.save,
               size: 32.0,
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 16.0,
           ),
           IconButton(
-            icon: _isRecording ? Icon(Icons.stop) : Icon(Icons.mic),
+            icon: _isRecording ? const Icon(Icons.stop) : const Icon(Icons.mic),
             onPressed: () =>
                 _isRecording ? _stopRecording() : _startRecording(),
             iconSize: 48.0,
           ),
-          SizedBox(
+          const SizedBox(
             height: 16.0,
           ),
           IconButton(
-            icon: Icon(Icons.play_arrow),
+            icon: const Icon(Icons.play_arrow),
             onPressed: () {
-              // player.play(UrlSource(
-              //     'https://download.samplelib.com/mp3/sample-3s.mp3'));
-              player.play(
+              _player.play(
                 BytesSource(
                   Uint8List.fromList(_bytes),
                 ),
@@ -188,4 +147,53 @@ class RecordScreenState extends State<RecordScreen> {
       ),
     );
   }
+}
+
+//https://stackoverflow.com/a/62028897
+List<int> getHeaders({
+  required int size,
+  required int channels,
+  required int sampleRate,
+}) {
+  final fileSize = size + 36;
+  final int byteRate = ((16 * sampleRate * channels) / 8).round();
+
+  return [
+    // "RIFF"
+    82, 73, 70, 70,
+    fileSize & 0xff,
+    (fileSize >> 8) & 0xff,
+    (fileSize >> 16) & 0xff,
+    (fileSize >> 24) & 0xff,
+    // WAVE
+    87, 65, 86, 69,
+    // fmt
+    102, 109, 116, 32,
+    // fmt chunk size 16
+    16, 0, 0, 0,
+    // Type of format
+    1, 0,
+    // One channel
+    channels, 0,
+    // Sample rate
+    sampleRate & 0xff,
+    (sampleRate >> 8) & 0xff,
+    (sampleRate >> 16) & 0xff,
+    (sampleRate >> 24) & 0xff,
+    // Byte rate
+    byteRate & 0xff,
+    (byteRate >> 8) & 0xff,
+    (byteRate >> 16) & 0xff,
+    (byteRate >> 24) & 0xff,
+    // Uhm
+    ((16 * channels) / 8).round(), 0,
+    // bitsize
+    16, 0,
+    // "data"
+    100, 97, 116, 97,
+    size & 0xff,
+    (size >> 8) & 0xff,
+    (size >> 16) & 0xff,
+    (size >> 24) & 0xff,
+  ];
 }

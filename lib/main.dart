@@ -3,7 +3,7 @@ import 'dart:core';
 import 'package:audio_recorder_app/main_page.dart';
 import 'package:flutter/material.dart';
 
-void main() => runApp(MicStreamExampleApp());
+void main() => runApp(const MicStreamExampleApp());
 
 class MicStreamExampleApp extends StatelessWidget {
   const MicStreamExampleApp({Key? key}) : super(key: key);
@@ -19,6 +19,6 @@ class MicStreamExampleApp extends StatelessWidget {
             accentColor: Colors.blue,
           ),
         ),
-        home: MainPage());
+        home: const MainPage());
   }
 }

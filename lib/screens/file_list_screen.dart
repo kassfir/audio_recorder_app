@@ -1,5 +1,4 @@
 import 'dart:developer';
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -20,7 +19,7 @@ class _FileListScreenState extends State<FileListScreen> {
   AudioPlayer player = AudioPlayer();
   String? _currentPath;
 
-  List<FileSystemEntity> file = [];
+  List<FileSystemEntity> files = [];
 
   @override
   void initState() {
@@ -32,7 +31,7 @@ class _FileListScreenState extends State<FileListScreen> {
     directory = (await getApplicationDocumentsDirectory()).path;
 
     setState(() {
-      file = Directory(directory!)
+      files = Directory(directory!)
           .listSync()
           .where((element) => getFileExtension(element).length < 5)
           .toList();
@@ -48,21 +47,25 @@ class _FileListScreenState extends State<FileListScreen> {
 
     Uint8List bytes = await File.fromUri(Uri.file(_currentPath!)).readAsBytes();
 
-    print(bytes);
-
     await player.play(BytesSource(bytes));
-
-    // await player.setSourceDeviceFile(path);
-
-    // await player.play();
-
-    // final duration = await player.getDuration();
-
-    // log(duration!.inSeconds.toString());
   }
 
   String getFileExtension(FileSystemEntity file) {
     return file.path.split('.').last;
+  }
+
+  void handleDelete(FileSystemEntity file) {
+    final fileRef = File(file.path);
+
+    fileRef.delete().then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Deleted')),
+      );
+      _listOfFiles();
+    }).catchError((error) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Cound not delete file')));
+    });
   }
 
   @override
@@ -70,55 +73,40 @@ class _FileListScreenState extends State<FileListScreen> {
     return Column(children: [
       Expanded(
         child: ListView.builder(
-          itemCount: file.length,
+          itemCount: files.length,
           itemBuilder: ((context, index) {
-            if (file.length == 0) {
-              return Center(
+            if (files.isEmpty) {
+              return const Center(
                 child: Text('No files to display'),
               );
             }
 
             return ListTile(
-              title: Text(file[index].path),
+              title: Text(files[index].path),
               subtitle: FutureBuilder(
-                future: file[index].stat(),
+                future: files[index].stat(),
                 builder: (context, snapshot) {
                   log('running');
                   if (snapshot.hasData) {
                     FileStat stats = snapshot.data as FileStat;
                     return Text(stats.size.toString());
                   }
-                  return SizedBox.shrink();
+                  return const SizedBox.shrink();
                 },
               ),
               onTap: () {
                 if (player.state != PlayerState.playing) {
-                  _setAudioPath(file[index].path);
+                  _setAudioPath(files[index].path);
                   return;
                 }
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                  const SnackBar(
                     content: Text('Cannot change source while playing file!'),
                   ),
                 );
               },
-              onLongPress: () async {
-                try {
-                  final fileRef = await File(file[index].path);
-                  await fileRef.delete();
-
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('Deleted')));
-
-                  _listOfFiles();
-                } catch (error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Cound not delete file')));
-
-                  log(error.toString());
-                }
-              },
+              onLongPress: () => handleDelete(files[index]),
             );
           }),
         ),
@@ -142,7 +130,7 @@ class _FileListScreenState extends State<FileListScreen> {
           ),
         ],
       ),
-      SizedBox(
+      const SizedBox(
         height: 20,
       )
     ]);
