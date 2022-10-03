@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:mic_stream/mic_stream.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:google_speech/google_speech.dart';
+import 'package:rxdart/rxdart.dart';
 
 class RecordScreen extends StatefulWidget {
   const RecordScreen({Key? key}) : super(key: key);
@@ -31,7 +33,34 @@ class RecordScreenState extends State<RecordScreen> {
   StreamSubscription<List<int>>? streamSubscription;
   final AudioPlayer _player = AudioPlayer();
 
+  BehaviorSubject<List<int>>? _audioStream;
+
+  bool recognizing = false;
+  bool recognizeFinished = false;
+  String text = '';
+
+  StreamSubscription<List<int>>? _audioStreamSubscription;
+
+  late final serviceAccount =
+      ServiceAccount.fromFile(File('../config/credentials.json'));
+
+  late final speechToText = SpeechToText.viaServiceAccount(serviceAccount);
+
   final _sampleRate = 44100;
+
+  late final config = RecognitionConfig(
+    encoding: AudioEncoding.LINEAR16,
+    audioChannelCount: 1,
+    model: RecognitionModel.basic,
+    enableAutomaticPunctuation: true,
+    sampleRateHertz: _sampleRate,
+    languageCode: 'en-US',
+  );
+
+  late final StreamingRecognitionConfig streamingConfig =
+      StreamingRecognitionConfig(config: config, interimResults: true);
+
+  late final Stream responseStream;
 
   late final List<int> _headers =
       getHeaders(channels: 1, sampleRate: _sampleRate, size: _bytes.length);
@@ -48,6 +77,13 @@ class RecordScreenState extends State<RecordScreen> {
         channelConfig: ChannelConfig.CHANNEL_IN_MONO,
         audioFormat: AudioFormat.ENCODING_PCM_16BIT,
       );
+
+      responseStream =
+          speechToText.streamingRecognize(streamingConfig, stream!);
+      responseStream.listen((event) {
+        log('listening');
+        log(event.results.toString());
+      });
 
       streamSubscription = stream!.listen((samples) {
         if (_isRecording) {

@@ -40,6 +40,8 @@ dependencies:
   mic_stream: ^0.6.2
   uuid: ^3.0.6
   audioplayers: ^1.1.0
+  google_speech: ^2.1.1
+  rxdart: ^0.27.5
 
 dev_dependencies:
   flutter_test:
