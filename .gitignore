@@ -47,4 +47,4 @@ app.*.map.json
 /android/app/release
 
 # GCP Credential file
-lib/config/credentials.json
+lib/assets/c.json
