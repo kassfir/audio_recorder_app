@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_speech/google_speech.dart';
@@ -40,7 +42,6 @@ class _RecordScreenState extends State<RecordScreen> {
   @override
   void didChangeDependencies() async {
     if (isInit) {
-      log('didchange dependencies');
       stream = await MicStream.microphone(
         sampleRate: 44100,
         channelConfig: ChannelConfig.CHANNEL_IN_MONO,
@@ -53,7 +54,6 @@ class _RecordScreenState extends State<RecordScreen> {
   }
 
   void streamingRecognize() async {
-    log('streaming recognize');
     _audioStream = BehaviorSubject<List<int>>();
 
     _bytes.clear();
@@ -63,6 +63,7 @@ class _RecordScreenState extends State<RecordScreen> {
       if (recognizing) {
         _audioStream!.add(event);
         _bytes.addAll(event);
+
         setState(() {});
       }
     });
@@ -162,6 +163,32 @@ class _RecordScreenState extends State<RecordScreen> {
               onPressed: _bytes.isNotEmpty ? _saveFile : null,
               child: Text('Save file'),
             ),
+            ElevatedButton(
+              onPressed: () async {
+                log('PLAYING FILE');
+                final AudioPlayer player = AudioPlayer();
+
+                await player.play(BytesSource(Uint8List.fromList(_bytes)));
+
+                Uint8List uintList = Uint8List.fromList(_bytes);
+
+                log('_bytes: ${_bytes.length.toString()}');
+                log('uintList: ${uintList.length.toString()}');
+
+                final duration = player.getDuration().then(
+                  (duration) {
+                    if (duration != null) {
+                      log(duration.inSeconds.toString());
+                      return;
+                    }
+
+                    log('no duration gotten');
+                  },
+                );
+                // await player.release();
+              },
+              child: Text('Play file'),
+            ),
           ],
         ),
       ),
@@ -202,9 +229,9 @@ List<int> getHeaders({
   required int channels,
   required int sampleRate,
 }) {
-  final int headerLength = 36;
+  const int headerLength = 36;
   final fileSize = size + headerLength;
-  final bitRate = 16;
+  const int bitRate = 16;
   final int byteRate = ((bitRate * sampleRate * channels) / 8).round();
 
   return [
