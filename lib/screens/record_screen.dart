@@ -1,21 +1,24 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:core';
 import 'dart:developer';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:audio_recorder_app/config.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-
-import 'package:mic_stream/mic_stream.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:google_speech/google_speech.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:mic_stream/mic_stream.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 
 class RecordScreen extends StatefulWidget {
   const RecordScreen({Key? key}) : super(key: key);
 
   @override
-  State<RecordScreen> createState() => RecordScreenState();
+  State<StatefulWidget> createState() => _RecordScreenState();
 }
 
 enum Command {
@@ -24,57 +27,106 @@ enum Command {
   change,
 }
 
-class RecordScreenState extends State<RecordScreen> {
-  bool _isRecording = false;
+class _RecordScreenState extends State<RecordScreen> {
+  bool isInit = true;
   Stream<List<int>>? stream;
-  final List<int> _bytes = [];
-  StreamSubscription<List<int>>? streamSubscription;
-  final AudioPlayer _player = AudioPlayer();
 
-  final _sampleRate = 44100;
+  bool recognizing = false;
+  bool recognizeFinished = false;
+  String text = '';
+  StreamSubscription<List<int>>? _audioStreamSubscription;
+  BehaviorSubject<List<int>>? _audioStream;
+  final List<int> _bytes = [];
 
   late final List<int> _headers =
-      getHeaders(channels: 1, sampleRate: _sampleRate, size: _bytes.length);
-
-  //variable for didChangeDependencies because MicStream needs context which
-  //initState does not provide.
-  bool _isInitializing = true;
+      getHeaders(channels: 1, sampleRate: 44100, size: _bytes.length);
 
   @override
   void didChangeDependencies() async {
-    if (_isInitializing) {
+    if (isInit) {
       stream = await MicStream.microphone(
-        sampleRate: _sampleRate,
+        sampleRate: 44100,
         channelConfig: ChannelConfig.CHANNEL_IN_MONO,
         audioFormat: AudioFormat.ENCODING_PCM_16BIT,
       );
 
-      streamSubscription = stream!.listen((samples) {
-        if (_isRecording) {
-          _bytes.addAll(samples);
-          setState(() {});
-        }
-      });
-
-      setState(() {
-        _isInitializing = true;
-      });
+      isInit = false;
     }
     super.didChangeDependencies();
   }
 
-  void _startRecording() {
+  void streamingRecognize() async {
+    _audioStream = BehaviorSubject<List<int>>();
+
     _bytes.clear();
 
-    //automatically add headers when beginning recording
-    _bytes.addAll(_headers);
-    _isRecording = true;
-    setState(() {});
+    _audioStreamSubscription = stream!.listen((event) {
+      if (recognizing) {
+        _audioStream!.add(event);
+        _bytes.addAll(event);
+
+        setState(() {});
+      }
+    });
+
+    setState(() {
+      recognizing = true;
+    });
+
+    final serviceAccount = ServiceAccount.fromString(
+        await rootBundle.loadString('lib/assets/c.json'));
+
+    final speechToText = SpeechToText.viaServiceAccount(serviceAccount);
+    final config = _getConfig();
+
+    final responseStream = speechToText.streamingRecognize(
+      StreamingRecognitionConfig(
+        config: config,
+        interimResults: true,
+        singleUtterance: false,
+      ),
+      _audioStream!,
+    );
+
+    var responseText = '';
+
+    responseStream.listen((data) {
+      log(data.writeToJson());
+      final currentText =
+          data.results.map((e) => e.alternatives.first.transcript).join('\n');
+
+      log(data.results.first.isFinal.toString());
+
+      if (data.results.first.isFinal) {
+        responseText += '\n' + currentText;
+        setState(() {
+          text = responseText;
+          recognizeFinished = true;
+        });
+      } else {
+        setState(() {
+          text = responseText + '\n' + currentText;
+          recognizeFinished = true;
+        });
+      }
+    }, onDone: () {
+      setState(() {
+        recognizing = false;
+      });
+    });
   }
 
-  void _stopRecording() {
-    _isRecording = false;
-    setState(() {});
+  void stopRecording() async {
+    await _audioStreamSubscription?.cancel();
+    await _audioStream?.close();
+    setState(() {
+      recognizing = false;
+    });
+
+    final headers =
+        getHeaders(channels: 1, sampleRate: 44100, size: _bytes.length);
+
+    _bytes.insertAll(0, headers);
   }
 
   void _saveFile() async {
@@ -86,62 +138,164 @@ class RecordScreenState extends State<RecordScreen> {
     log(filePath);
   }
 
+  Future<void> sendToAsya() async {
+    // https://api.asya.ai/task_submit?
+    // api_key =
+    // features = audio_emotions&
+    // features = audio_denoise&
+    // features = audio_diarisation&
+    // is_save_source_file_after_processing = false&
+    // priority = 0&
+    // is_ref_metrics = false&
+    // callback_email =
+    // audio_target_sample_rate = 44100&
+    // known_and_unknown_users_count = 0&
+    // segment_min_sec = 1&
+    // language_code = en
+
+    // final requestHeaders = {
+    //   'api_key': ASYA_API_KEY,
+    //   'features': [
+    //     'audio_emotions',
+    //     'audio_denoise',
+    //     'audio_diarisation',
+    //   ],
+    //   'is_save_source_file_after_processing': false,
+    //   'priority': 0,
+    //   'callback_email': CALLBACK_EMAIL,
+    //   'audio_target_sample_rate': 44100
+    // };
+
+    final file = await http.MultipartFile.fromBytes(
+      'file',
+      _bytes,
+      filename: 'recording.wav',
+    );
+
+    var uri = Uri.https(
+      ASYA_ENDPOINT,
+      ASYA_PATH,
+      {
+        'api_key': ASYA_API_KEY,
+        'features': [
+          'audio_emotions',
+          'audio_denoise',
+          'audio_diarisation',
+        ],
+        'priority': '0',
+        'is_save_source_file_after_processing': 'false',
+        'callback_email': CALLBACK_EMAIL,
+        'audio_target_sample_rate': '44100',
+        'language_code': 'en',
+      },
+    );
+
+    var request = http.MultipartRequest('POST', uri)..files.add(file);
+
+    log(request.url.toString());
+    // ..headers.addAll(
+    //     requestHeaders); //<-- headers redefined to Map<String, dynamic>
+
+    request.send().then(
+      (value) {
+        log(value.statusCode.toString());
+      },
+    );
+
+    // request.headers = requestHeaders;
+  }
+
+  RecognitionConfig _getConfig() => RecognitionConfig(
+        encoding: AudioEncoding.LINEAR16,
+        model: RecognitionModel.basic,
+        enableAutomaticPunctuation: true,
+        sampleRateHertz: 44100,
+        languageCode: 'en-US',
+      );
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: MediaQuery.of(context).size.width,
-      height: MediaQuery.of(context).size.height,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Recording length: ${_bytes.length}',
-            style: Theme.of(context).textTheme.headline2,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(
-            height: 16.0,
-          ),
-          Text(
-            'Is recording: $_isRecording',
-            style: Theme.of(context).textTheme.headline2,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(
-            height: 16.0,
-          ),
-          ElevatedButton(
-            onPressed: () {
-              _saveFile();
-            },
-            child: const Icon(
-              Icons.save,
-              size: 32.0,
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            Text('Size: ${_bytes.length}'),
+            Text('recognizeFinished: $recognizeFinished'),
+            if (recognizeFinished)
+              _RecognizeContent(
+                text: text,
+              ),
+            ElevatedButton(
+              onPressed: recognizing ? stopRecording : streamingRecognize,
+              child: recognizing
+                  ? const Text('Stop recording')
+                  : const Text('Start Streaming from mic'),
             ),
+            ElevatedButton(
+              onPressed: _bytes.isNotEmpty ? _saveFile : null,
+              child: Text('Save file'),
+            ),
+            ElevatedButton(
+              onPressed: sendToAsya,
+              child: Text('Send to analyze'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                log('PLAYING FILE');
+                final AudioPlayer player = AudioPlayer();
+
+                await player.play(BytesSource(Uint8List.fromList(_bytes)));
+                // var audioUrl = UrlSource(
+                //     'https://cdn.pixabay.com/audio/2022/03/15/audio_1769d63ef0.mp3');
+                // await player.play(audioUrl);
+
+                Uint8List uintList = Uint8List.fromList(_bytes);
+
+                log('_bytes: ${_bytes.length.toString()}');
+                log('uintList: ${uintList.length.toString()}');
+
+                final duration = player.getDuration().then(
+                  (duration) {
+                    if (duration != null) {
+                      log(duration.inSeconds.toString());
+                      return;
+                    }
+
+                    log('no duration gotten');
+                  },
+                );
+                // await player.release();
+              },
+              child: Text('Play file'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecognizeContent extends StatelessWidget {
+  final String? text;
+
+  const _RecognizeContent({Key? key, this.text}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: <Widget>[
+          const Text(
+            'The text recognized by the Google Speech Api:',
           ),
           const SizedBox(
             height: 16.0,
           ),
-          IconButton(
-            icon: _isRecording ? const Icon(Icons.stop) : const Icon(Icons.mic),
-            onPressed: () =>
-                _isRecording ? _stopRecording() : _startRecording(),
-            iconSize: 48.0,
-          ),
-          const SizedBox(
-            height: 16.0,
-          ),
-          IconButton(
-            icon: const Icon(Icons.play_arrow),
-            onPressed: () {
-              _player.play(
-                BytesSource(
-                  Uint8List.fromList(_bytes),
-                ),
-              );
-            },
-            iconSize: 48.0,
+          Text(
+            text ?? '---',
+            style: Theme.of(context).textTheme.bodyText1,
           ),
         ],
       ),
@@ -155,8 +309,10 @@ List<int> getHeaders({
   required int channels,
   required int sampleRate,
 }) {
-  final fileSize = size + 36;
-  final int byteRate = ((16 * sampleRate * channels) / 8).round();
+  const int headerLength = 36;
+  final fileSize = size + headerLength;
+  const int bitRate = 16;
+  final int byteRate = ((bitRate * sampleRate * channels) / 8).round();
 
   return [
     // "RIFF"

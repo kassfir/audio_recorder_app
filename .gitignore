@@ -32,6 +32,9 @@ migrate_working_dir/
 .pub/
 /build/
 
+#API key for Asya
+/lib/config.dart
+
 # Web related
 lib/generated_plugin_registrant.dart
 
@@ -45,3 +48,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# GCP Credential file
+lib/assets/c.json

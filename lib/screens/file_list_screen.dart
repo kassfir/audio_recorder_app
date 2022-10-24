@@ -44,10 +44,6 @@ class _FileListScreenState extends State<FileListScreen> {
     setState(() {
       _currentPath = path;
     });
-
-    Uint8List bytes = await File.fromUri(Uri.file(_currentPath!)).readAsBytes();
-
-    await player.play(BytesSource(bytes));
   }
 
   String getFileExtension(FileSystemEntity file) {
@@ -115,7 +111,12 @@ class _FileListScreenState extends State<FileListScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () async {
+              Uint8List bytes =
+                  await File.fromUri(Uri.file(_currentPath!)).readAsBytes();
+
+              await player.play(BytesSource(bytes));
+            },
             child: Text(
               'Play',
               style: Theme.of(context).textTheme.displaySmall,
