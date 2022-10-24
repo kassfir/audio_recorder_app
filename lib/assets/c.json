@@ -1,0 +1,13 @@
+{
+    "type": "service_account",
+    "project_id": "acn-riga-liquid-studio-aiai",
+    "private_key_id": "c96f6c9430be7f6b226fe21ae62b4ae3664cda22",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJxT6vOAFtHPE9\n1pCLePBF9oqEHHt5aaxlf5nk4yNdiruipf4xD2s3ZawUc9I4OWZDbFFnz/nCnU+0\nnx+PsrxEWTUWk+aelmEF8pxPdohLsc8O1gJa862HfmJn6VO/kLaKfSoSyXnLxya4\n8ykfivDajrnj0JVVU5IXK4rU++q44PdE7TDvh+yGCiFNr7f6A97i0wFiZ3STUh5q\npRHXIup5NCeg/vTvbxpfpxPH4jA3vsqBgppPbYTE/w8K+aGemXlISjoV5if9fH5h\n/Yp/2phSPul4XU9lmxcjx8PkXOs0hlQ0VTMt7qb/ZGw44GOj/QGaxUFXHyCRsyut\nLG4QRSjHAgMBAAECggEACrKHR/2wNh0i4PDSHSdZCAgcldBo/XgTamu/amZCCLC/\nyk1mHUdum2Udg/kwswCGuva3e0l6OdTwwJnvzETaJzeFH6QmjOw+A9jgwXQ3aARq\n8IdefLWkUskUpcZ9KNAQuRBj3X4gE88EYNQ5S4pTNNJSBibe8VGOdgIheni8Dc0L\ncF9zfxJyedbG0t2YYggtL8o//QH7WIwjMwCktrWSApvU7EFLPHcjC0sWvNVVNy8Y\nKbhyBq8xR+F+JX2U4K+Vzrp9Qfgp3qoMYE5x6rjKFEQGeHDF+oLiMDfPAmuQ6vda\ngwBGsaEQ/l3TiD+12QiVejtcboE3KA52TjtKcrTvFQKBgQDzMqzaLr/yY/l1ildq\nwPJM3QpzI3v7pzrPUfiIYILxXYEsY2JM2b3kyN6zc1waYDYc/YzWUG1wDrRLB0o4\nuEWiEUKlGOM4LuaLH1sUg+HjFmmRx9NfodQig0nt4NEw5B9Y78JC1Reshlf83sBB\nXBDHK9ANhaeRdn4Q9QeE6aZozQKBgQDUZEuF3Se5s57fXyl7XDAX8iL/pAcam+kw\nc+LDj4PcfekN27c1r4owNR8wwK1HLg+6MHerUBUcM4gRObCzXRom3qkUXwp0m0zS\nkQME3XIbISV0C60R+7dyuv206F6kGiGXZY5dXA3gFb6tEERA06glQKOTjSMJAHEJ\n6zyD4rsn4wKBgHHqaMECaPK3FaCTHoNowZZza3OnSWoFWSzHbq0i1/MLI3iRTPhG\nfgZueLKB9MB+FJrbwV6Z6ck1egoy7fdHiYZyo08GK1ijz2WXWGhxphti4ixg94ey\nG9XWvYhpaFOIZ46XL91yR1aOzyQpitCSuWEyCpBq7KTcZgy3WcBOWZ55AoGAYnE6\nMAmZaBFBCfdpmqvX/sFUR3kXcdXh93s/F7VlQMV7R9kWyeNbAY0dr9MefWd0ErB0\nRwsPPcsEvjcnF3uHq4x4geCrT/DLYq2j4JVjVf+/BFKFHVi2Zo8VGMy7UQRrnWiM\n2+jW5Y4umrh3ajSwMtQK/VDldD6oJhjKK7bjWFECgYEAvY5Fb2e7lASRduFMBrJg\nmoVMRLLz46nkJRkjHAh59zM5rSkMBpMKSGJ19cXnflP+w+f+vDtZ1bMEiIbkruUR\nHrQzT9Pu8Vc8B0QnDLivFgMDWSrg3NKVnqlcJQ850opOBYyuAmLn4uJfCUDZyHoK\nmQcbvFBWQ8wSSHPDwHLHDs8=\n-----END PRIVATE KEY-----\n",
+    "client_email": "lucy-api@acn-riga-liquid-studio-aiai.iam.gserviceaccount.com",
+    "client_id": "107113829958069062888",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/lucy-api%40acn-riga-liquid-studio-aiai.iam.gserviceaccount.com"
+  }
+  
