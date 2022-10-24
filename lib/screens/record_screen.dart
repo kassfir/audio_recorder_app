@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:audio_recorder_app/config.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -11,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:mic_stream/mic_stream.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 
 class RecordScreen extends StatefulWidget {
   const RecordScreen({Key? key}) : super(key: key);
@@ -136,6 +138,73 @@ class _RecordScreenState extends State<RecordScreen> {
     log(filePath);
   }
 
+  Future<void> sendToAsya() async {
+    // https://api.asya.ai/task_submit?
+    // api_key =
+    // features = audio_emotions&
+    // features = audio_denoise&
+    // features = audio_diarisation&
+    // is_save_source_file_after_processing = false&
+    // priority = 0&
+    // is_ref_metrics = false&
+    // callback_email =
+    // audio_target_sample_rate = 44100&
+    // known_and_unknown_users_count = 0&
+    // segment_min_sec = 1&
+    // language_code = en
+
+    // final requestHeaders = {
+    //   'api_key': ASYA_API_KEY,
+    //   'features': [
+    //     'audio_emotions',
+    //     'audio_denoise',
+    //     'audio_diarisation',
+    //   ],
+    //   'is_save_source_file_after_processing': false,
+    //   'priority': 0,
+    //   'callback_email': CALLBACK_EMAIL,
+    //   'audio_target_sample_rate': 44100
+    // };
+
+    final file = await http.MultipartFile.fromBytes(
+      'file',
+      _bytes,
+      filename: 'recording.wav',
+    );
+
+    var uri = Uri.https(
+      ASYA_ENDPOINT,
+      ASYA_PATH,
+      {
+        'api_key': ASYA_API_KEY,
+        'features': [
+          'audio_emotions',
+          'audio_denoise',
+          'audio_diarisation',
+        ],
+        'priority': '0',
+        'is_save_source_file_after_processing': 'false',
+        'callback_email': CALLBACK_EMAIL,
+        'audio_target_sample_rate': '44100',
+        'language_code': 'en',
+      },
+    );
+
+    var request = http.MultipartRequest('POST', uri)..files.add(file);
+
+    log(request.url.toString());
+    // ..headers.addAll(
+    //     requestHeaders); //<-- headers redefined to Map<String, dynamic>
+
+    request.send().then(
+      (value) {
+        log(value.statusCode.toString());
+      },
+    );
+
+    // request.headers = requestHeaders;
+  }
+
   RecognitionConfig _getConfig() => RecognitionConfig(
         encoding: AudioEncoding.LINEAR16,
         model: RecognitionModel.basic,
@@ -166,6 +235,10 @@ class _RecordScreenState extends State<RecordScreen> {
             ElevatedButton(
               onPressed: _bytes.isNotEmpty ? _saveFile : null,
               child: Text('Save file'),
+            ),
+            ElevatedButton(
+              onPressed: sendToAsya,
+              child: Text('Send to analyze'),
             ),
             ElevatedButton(
               onPressed: () async {

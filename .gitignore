@@ -32,6 +32,9 @@ migrate_working_dir/
 .pub/
 /build/
 
+#API key for Asya
+/lib/config.dart
+
 # Web related
 lib/generated_plugin_registrant.dart
 
