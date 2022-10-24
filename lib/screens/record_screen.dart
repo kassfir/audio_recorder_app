@@ -57,9 +57,8 @@ class _RecordScreenState extends State<RecordScreen> {
     _audioStream = BehaviorSubject<List<int>>();
 
     _bytes.clear();
-    _bytes.addAll(_headers);
 
-    stream!.listen((event) {
+    _audioStreamSubscription = stream!.listen((event) {
       if (recognizing) {
         _audioStream!.add(event);
         _bytes.addAll(event);
@@ -121,6 +120,11 @@ class _RecordScreenState extends State<RecordScreen> {
     setState(() {
       recognizing = false;
     });
+
+    final headers =
+        getHeaders(channels: 1, sampleRate: 44100, size: _bytes.length);
+
+    _bytes.insertAll(0, headers);
   }
 
   void _saveFile() async {
@@ -169,6 +173,9 @@ class _RecordScreenState extends State<RecordScreen> {
                 final AudioPlayer player = AudioPlayer();
 
                 await player.play(BytesSource(Uint8List.fromList(_bytes)));
+                // var audioUrl = UrlSource(
+                //     'https://cdn.pixabay.com/audio/2022/03/15/audio_1769d63ef0.mp3');
+                // await player.play(audioUrl);
 
                 Uint8List uintList = Uint8List.fromList(_bytes);
 
